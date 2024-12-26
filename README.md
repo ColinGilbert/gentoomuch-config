@@ -1,7 +1,5 @@
-This is the configuration file structure for Gentoomuch.
-========================================================
-
-Here is the basic structure:
+Configuration files for Gentoomuch
+==================================
 
 - ``env`` is for the environment in which gentoomuch operates. You might need to change the data in some files in there prior to first running:
     - ``arch`` is for your host's architecture. Acceptable values are: ``amd64``, ``arm64``.

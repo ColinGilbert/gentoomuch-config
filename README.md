@@ -13,7 +13,7 @@ Configuration files for Gentoomuch
 - ``portage.global`` is where the global base state for portage exists. The tool will ingest it along with your own definitions in ``portage.locals``
 - ``user.patches`` is where your patches get stored. These are automatically created by the Gentoomuch tool itself.
 - ``user.removes`` is where you write down the files you want to remove after your stage4 is built.
-- ``user.scripts`` is where you write down scripts that get executed after your stage4 is built.
+- ``user.scripts`` is where you write down scripts that get executed after your stage4 is built. Make sure to chmod them into executables!
 - ``stage3.defines`` is where you create folders with files defining the building blocks from which your stage3 gets assembled:
     - ``cpu`` in which you plug in the name of the cpu configuration you've defined in ``cpu.defines``.
     - ``packages`` in which you write down the package sets you've defined in ``package.sets``. It'll also work with individual packages.

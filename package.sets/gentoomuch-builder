@@ -7,3 +7,4 @@ sys-fs/squashfs-tools
 app-portage/gentoolkit
 sys-kernel/linux-firmware
 app-arch/pigz
+dev-perl/Config-AutoConf

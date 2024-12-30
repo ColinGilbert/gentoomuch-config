@@ -1,3 +1,4 @@
 x11-wm/i3
 sys-fs/zfs
 sys-fs/zfs-kmod
+dev-perl/Config-AutoConf

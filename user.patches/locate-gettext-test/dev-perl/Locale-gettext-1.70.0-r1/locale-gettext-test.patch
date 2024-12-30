@@ -1,0 +1,318 @@
+From 18b16335e8f156952b86bdd35f22f0df8bb68489 Mon Sep 17 00:00:00 2001
+From: Steve Bertrand <steve02@hitachi-id.com>
+Date: Mon, 23 Jan 2017 08:05:06 -0700
+Subject: [PATCH 1/3] made strict/warnings compliant, and added use strict;,
+ use warnings;
+
+---
+ gettext.pm | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/gettext.pm b/gettext.pm
+index 63bfb1f..ab2f033 100644
+--- a/gettext.pm
++++ b/gettext.pm
+@@ -31,12 +31,19 @@ to internationalize software.
+ 
+ =cut
+ 
++use strict;
++use warnings;
++
+ use Carp;
+ use POSIX qw(:locale_h);
+ 
+ require Exporter;
+ require DynaLoader;
+-@ISA = qw(Exporter DynaLoader);
++
++use vars '$AUTOLOAD';
++our @ISA = qw(Exporter DynaLoader);
++
++my $encode_available;
+ 
+ BEGIN {
+ 	eval {
+@@ -46,9 +53,9 @@ BEGIN {
+ 	import Encode if ($encode_available);
+ }
+ 
+-$VERSION = "1.07" ;
++our $VERSION = "1.07" ;
+ 
+-%EXPORT_TAGS = (
++our %EXPORT_TAGS = (
+ 
+     locale_h =>	[qw(LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES LC_ALL)],
+ 
+@@ -58,7 +65,7 @@ $VERSION = "1.07" ;
+ 
+ Exporter::export_tags();
+ 
+-@EXPORT_OK = qw(
++our @EXPORT_OK = qw(
+ );
+ 
+ bootstrap Locale::gettext $VERSION;
+@@ -69,7 +76,8 @@ sub AUTOLOAD {
+     $constname =~ s/.*:://;
+     my $val = constant($constname, (@_ ? $_[0] : 0));
+     if ($! == 0) {
+-	*$AUTOLOAD = sub { $val };
++		no strict 'refs';
++		*$AUTOLOAD = sub { $val };
+     }
+     else {
+ 	croak "Missing constant $constname";
+
+From c6e5686f3f54c13611008284ec45d2334f18dde2 Mon Sep 17 00:00:00 2001
+From: Steve Bertrand <steveb@cpan.org>
+Date: Mon, 23 Jan 2017 08:10:48 -0700
+Subject: [PATCH 2/3] added LICENSE section in POD, and added license to
+ Makefile.PL
+
+- should satisfy CPANTS
+---
+ Makefile.PL | 3 ++-
+ gettext.pm  | 6 ++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/Makefile.PL b/Makefile.PL
+index bd82428..8729db6 100644
+--- a/Makefile.PL
++++ b/Makefile.PL
+@@ -34,7 +34,8 @@ unlink("conftest");
+ WriteMakefile(
+     NAME => "Locale::gettext",
+     LIBS => ($libs eq '') ? [] : [$libs],
+-    VERSION_FROM => 'gettext.pm', 
++    VERSION_FROM => 'gettext.pm',
++	LICENSE => 'perl_5',
+     META_MERGE => {
+         resources => {
+             repository => 'https://github.com/vandry/Perl-Locale-gettext',
+diff --git a/gettext.pm b/gettext.pm
+index ab2f033..80d8b96 100644
+--- a/gettext.pm
++++ b/gettext.pm
+@@ -286,6 +286,12 @@ gettext(3i), gettext(1), msgfmt(1)
+ 
+ Kim Vandry <vandry@TZoNE.ORG>
+ 
++=head1 LICENSE
++
++This library is free software; you can redistribute it and/or modify
++it under the same terms as Perl itself, either Perl version 5.24.0 or,
++at your option, any later version of Perl 5 you may have available.
++
+ =cut
+ 
+ 1;
+
+From 235dd30ce9fa820c448ff16a1ffe523cc56146fc Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Salvador=20Fandi=C3=B1o?= <sfandino@yahoo.com>
+Date: Wed, 22 Mar 2017 16:16:27 +0100
+Subject: [PATCH 1/3] Use Config::AutoConf for analyzing libintl
+
+The ad-hoc libintl detection code used in Makefile.PL was not taking
+into account several of the flags that ExtUtil::MakeMaker can take
+from the command line.
+
+The following patch changes it to use Config::AutoConf in order to
+prove for several libintl features and to generate the file
+"config.h".
+---
+ Makefile.PL | 98 ++++++++++++++++++++++++-----------------------------
+ 1 file changed, 45 insertions(+), 53 deletions(-)
+
+diff --git a/Makefile.PL b/Makefile.PL
+index 8729db6..82e25d6 100644
+--- a/Makefile.PL
++++ b/Makefile.PL
+@@ -1,41 +1,61 @@
+ use ExtUtils::MakeMaker;
+ use Config;
+ 
+-my $cc;
+-if (defined($ENV{'CC'})) {
+-	$cc = $ENV{'CC'};
+-} else {
+-	$cc = $Config{'cc'};
++use strict;
++use warnings;
++use Config::AutoConf;
++
++my %args;
++for (@ARGV) {
++    $args{$1} = $2 if /(\w+)=(.*)/;
+ }
+-my $libs = '';
+ 
+-unless (conftest("char *x = gettext(\"foo\");", "gettext", 0)) {
+-	# try with -lintl
+-	$libs = "-lintl";
+-	unless (conftest("char *x = gettext(\"foo\");", "gettext", 0)) {
+-		unlink("conftest.c");
+-		unlink("conftest");
+-		die "gettext function not found. Please install libintl";
+-	}
++my @libs;
++
++my $ac = Config::AutoConf->new;
++
++if (defined(my $ccflags = $args{CCFLAGS})) {
++    $ac->check_compiler_flags($ccflags);
++}
++if (defined(my $inc = $args{INC})) {
++    $ac->push_preprocess_flags($inc)
++}
++if (defined(my $lddlflags = $args{LDDLFLAGS})) {
++    $ac->push_link_flags($lddlflags);
++}
++if (defined(my $libs = $args{LIBS})) {
++    push @libs, $libs;
++    $ac->push_link_flags($libs);
+ }
+ 
+-open(CONFIG, ">config.h");
+-print CONFIG "/* Generated automatically by ", $0, ". Do not edit */\n";
++$ac->check_valid_compiler() or die;
++$ac->check_header('libintl.h') or die;
+ 
+-conftest("char *x = dcgettext(\"foo\", \"bar\", 0);", "dgettext", 1);
+-conftest("char *x = ngettext(\"foo\", \"foos\", 1);", "ngettext", 1);
+-conftest("char *x = bind_textdomain_codeset(\"foo\", \"UTF-8\");", "bind_textdomain_codeset", 1);
++my $lib = $ac->search_libs('gettext', ['intl']);
++if ($lib eq '0') {
++    die;
++}
++elsif ($lib ne 'none required') {
++    push @libs, "-l$lib";
++}
+ 
+-close CONFIG;
++for my $fn (qw(gettext dgettext dcgettext ngettext bind_textdomain_codeset chirpy_canary)) {
++    if ($ac->check_decl($fn, {prologue => "#include <libintl.h>\n"})) {
++        $ac->define_var("HAVE_".uc($fn), 1);
++    }
++}
+ 
+-unlink("conftest.c");
+-unlink("conftest");
++$ac->write_config_h;
+ 
+ WriteMakefile(
+     NAME => "Locale::gettext",
+-    LIBS => ($libs eq '') ? [] : [$libs],
+     VERSION_FROM => 'gettext.pm',
+-	LICENSE => 'perl_5',
++    LICENSE => 'perl_5',
++    LIBS => join(" ", @libs),
++    CONFIGURE_REQUIRES => {
++        "ExtUtils::MakeMaker" => "6.52",
++        "Config::AutoConf" => "0.313",
++    },
+     META_MERGE => {
+         resources => {
+             repository => 'https://github.com/vandry/Perl-Locale-gettext',
+@@ -43,34 +63,6 @@ WriteMakefile(
+         },
+     },
+     ABSTRACT => "Perl bindings for POSIX i18n gettext functions",
+-    AUTHOR => "Kim Vandry <vandry@TZoNE.ORG>",
++    AUTHOR => 'Kim Vandry <vandry@TZoNE.ORG>',
+     LICENSE => 'perl',
+ );
+-
+-sub conftest {
+-	my ($testcode, $func, $record) = @_;
+-
+-	print "checking for ", $func;
+-	print(" in ", $libs) if ($libs ne '');
+-	print "...";
+-	open(TEST, ">conftest.c");
+-	print TEST "#include <libintl.h>\n\nint main(int argc, char **argv)\n{\n";
+-	print TEST $testcode;
+-	print TEST "return 0;}\n";
+-	close TEST;
+-	open(SAVE, ">&STDERR");
+-	open(STDERR, ">/dev/null");
+-	system($cc . " -o conftest " . " conftest.c " . $libs);
+-	my $exitstatus = $?;
+-	open(STDERR, ">&SAVE");
+-	if ($exitstatus != 0) {
+-		print " no\n";
+-		return 0;
+-	} else {
+-		print " yes\n";
+-		if ($record) {
+-			print CONFIG "#define HAVE_", uc($func), "\n";
+-		}
+-		return 1;
+-	}
+-}
+
+From fee0349f10c46c067ab37dd663508da82dc48a70 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Salvador=20Fandi=C3=B1o?= <sfandino@yahoo.com>
+Date: Thu, 23 Mar 2017 13:27:38 +0100
+Subject: [PATCH 2/3] Add support for Config.pm
+
+This patch adds the required infrastructure to save a configuration
+hash from the AutoConf stage that could be later consulted from the
+module at runtime.
+---
+ Makefile.PL | 13 +++++++++++++
+ gettext.pm  |  3 +++
+ 2 files changed, 16 insertions(+)
+
+diff --git a/Makefile.PL b/Makefile.PL
+index 82e25d6..a461e82 100644
+--- a/Makefile.PL
++++ b/Makefile.PL
+@@ -4,6 +4,7 @@ use Config;
+ use strict;
+ use warnings;
+ use Config::AutoConf;
++use Data::Dumper ();
+ 
+ my %args;
+ for (@ARGV) {
+@@ -47,11 +48,23 @@ for my $fn (qw(gettext dgettext dcgettext ngettext bind_textdomain_codeset chirp
+ 
+ $ac->write_config_h;
+ 
++my %config;
++
++open my $fh, '>', "Config.pm" or die "Unable to create file 'Config.pm': $!";
++print {$fh} "package Locale::gettext;\n";
++print {$fh} Data::Dumper->Dump([\%config], [qw(*config)]);
++print {$fh} "1;\n";
++close $fh;
++
+ WriteMakefile(
+     NAME => "Locale::gettext",
+     VERSION_FROM => 'gettext.pm',
+     LICENSE => 'perl_5',
+     LIBS => join(" ", @libs),
++    PM => {
++        'gettext.pm' => '$(INST_LIB)/Locale/gettext.pm',
++        'Config.pm' => '$(INST_LIB)/Locale/gettext/Config.pm',
++    },
+     CONFIGURE_REQUIRES => {
+         "ExtUtils::MakeMaker" => "6.52",
+         "Config::AutoConf" => "0.313",
+diff --git a/gettext.pm b/gettext.pm
+index 80d8b96..c10796a 100644
+--- a/gettext.pm
++++ b/gettext.pm
+@@ -43,6 +43,9 @@ require DynaLoader;
+ use vars '$AUTOLOAD';
+ our @ISA = qw(Exporter DynaLoader);
+ 
++require Locale::gettext::Config;
++our %config;
++
+ my $encode_available;
+ 
+ BEGIN {
+

@@ -22,5 +22,5 @@ Configuration files for Gentoomuch
     - ``kconf`` is for your kernel configuration.
     - ``profile`` is for a profile you've bootstrapped.
     - ``stage3`` is for the stage3 you've defined in ``stage3.defines``.
-    - ``scripts`` is the name(s) of the script(s) that get run after building a stage4. Optional.
+    - ``scripts`` is the name(s) of the script(s) that get run from ``user.scripts``     after building a stage4. Optional.
     - ``removes`` is the name(s) of the set(s) of files you've marked for removal in ``user.removes``. Optional.

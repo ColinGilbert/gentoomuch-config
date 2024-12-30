@@ -19,7 +19,6 @@ Configuration files for Gentoomuch
     - ``packages`` in which you write down the package sets you've defined in ``package.sets``. It'll also work with individual packages.
     - ``portage.local`` in which you plug in the local portage directory you've defined in ``portage.locals``.
     - ``scripts`` is where you write down the name(s) of the script(s) that get run from ``user.scripts`` after building the stage3. Optional. 
-    - ``removes`` is for the name(s) of the set(s) of files you've marked for removal in ``user.removes``. Optional.
 - ``stage4.defines`` is where you define the stage4 environments that get built by the pipeline:
     - ``kconf`` is for your kernel configuration.
     - ``profile`` is for a profile you've bootstrapped.
